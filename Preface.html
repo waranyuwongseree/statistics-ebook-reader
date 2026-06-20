@@ -26,13 +26,13 @@
 .sc-ta{width:100%;font-family:'JetBrains Mono',monospace;font-size:.88em;padding:7px 9px;border:1px solid #cfd8dd;border-radius:8px;background:#fff;color:#23303a;resize:vertical;}
 .sc-hyp2{margin:8px 0;padding:8px 11px;background:#eef4fb;border-radius:8px;font-size:.86em;color:#1F4E79;font-weight:600;}
 .sc-view{flex:1;min-width:300px;display:flex;flex-direction:column;}
-.sc-cv{width:100%;height:288px;display:block;border:1px solid #e4e8ec;border-radius:10px;background:#fff;cursor:grab;touch-action:none;}
+.sc-cv{width:100%;height:320px;display:block;border:1px solid #e4e8ec;border-radius:10px;background:#fff;cursor:grab;touch-action:none;}
 .sc-leg{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:.76em;color:#5B6B78;margin-top:8px;}
 .lg{display:inline-block;width:14px;height:13px;border-radius:3px;vertical-align:-2px;margin-right:4px;}
 .lg-area{background:rgba(14,124,123,.22);}
-.lg-rej{background:rgba(192,57,43,.18);}
-.lg-crit{width:0;height:13px;border-radius:0;border-left:2px dashed #C0392B;}
-.lg-val{width:3px;height:13px;border-radius:0;background:#0E7C7B;}
+.lg-rej{background:rgba(194,106,10,.18);}
+.lg-crit{width:0;height:13px;border-radius:0;border-left:2px dashed #C26A0A;}
+.lg-val{width:3px;height:13px;border-radius:0;background:#C0392B;}
 .sc-ct{width:100%;border-collapse:collapse;margin-top:10px;font-size:.88em;}
 .sc-ct thead th{font-size:.8em;font-weight:600;color:#8a97a3;text-align:left;padding:4px 6px;border-bottom:1.5px solid #e4e8ec;}
 .sc-ct thead th:last-child{text-align:right;}
@@ -213,7 +213,10 @@ function build(el){
  }
  render();el._render=render;
 }
-function geo(cv){var W=cv.clientWidth||440,H=288;var dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';var ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);return{ctx:ctx,W:W,H:H,x0:36,x1:W-12,y0:H-36,y1:16};}
+function geo(cv){var W=cv.clientWidth||440,H=320;var dpr=window.devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';var ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);return{ctx:ctx,W:W,H:H,x0:36,x1:W-12,y0:H-56,y1:16};}
+// Overlap-aware stagger: place value labels below the axis in rows so they never
+// collide with each other (matches the book's figlib.axstat). items=[{x,text,color}].
+function statLabels(ctx,g,items){items.sort(function(a,b){return a.x-b.x;});ctx.font='bold 10px sans-serif';ctx.textAlign='center';var rows=[],FIRST=g.y0+26,STEP=13,PAD=6;items.forEach(function(it){var w=ctx.measureText(it.text).width,L=it.x-w/2-PAD,R=it.x+w/2+PAD,r=0;for(;;){if(r===rows.length)rows.push([]);var clash=rows[r].some(function(s){return !(R<s[0]||L>s[1]);});if(!clash){rows[r].push([L,R]);it.row=r;break;}r++;}});items.forEach(function(it){ctx.fillStyle=it.color;ctx.fillText(it.text,it.x,FIRST+it.row*STEP);});}
 function axis(ctx,g,r,SX,fmtTick){ctx.strokeStyle=GRID;ctx.fillStyle=TICK;ctx.font='10px sans-serif';ctx.textAlign='center';var nt=6;for(var i=0;i<=nt;i++){var xv=r[0]+(r[1]-r[0])*i/nt,X=SX(xv);ctx.beginPath();ctx.moveTo(X,g.y1);ctx.lineTo(X,g.y0);ctx.stroke();ctx.fillText(fmtTick(xv),X,g.y0+13);}ctx.strokeStyle=AX;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(g.x0,g.y0);ctx.lineTo(g.x1,g.y0);ctx.stroke();}
 function curveData(pdf,r,N){var xs=[],mx=0;for(var i=0;i<=N;i++){var xx=r[0]+(r[1]-r[0])*i/N,yy=pdf(xx);xs.push([xx,yy]);if(yy>mx)mx=yy;}return{xs:xs,mx:mx};}
 function vmark(ctx,g,X,topY,col,dash,label){ctx.strokeStyle=col;ctx.lineWidth=dash?1.6:2.2;if(dash)ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(X,Math.min(topY,g.y0-2));ctx.lineTo(X,g.y0);ctx.stroke();ctx.setLineDash([]);if(label!=null){ctx.fillStyle=col;ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillText(label,X,g.y0+25);}}
@@ -233,12 +236,15 @@ function drawTest(cv,kind,df,stat,alpha,alt){var D=tdist(kind,df);var g=geo(cv),
  function SX(x){return g.x0+(x-r[0])/(r[1]-r[0])*(g.x1-g.x0);}
  var cd=curveData(D.pdf,r,260),xs=cd.xs,mx=cd.mx;function SY(y){return g.y0-(y/mx)*(g.y0-g.y1);}
  function inrej(x){if(alt==='two')return x<=crit[0]||x>=crit[1];if(alt==='left')return x<=crit[0];return x>=crit[0];}
- ctx.strokeStyle=GRID;ctx.lineWidth=1;for(var gi=0;gi<=6;gi++){var gx=SX(r[0]+(r[1]-r[0])*gi/6);ctx.beginPath();ctx.moveTo(gx,g.y1);ctx.lineTo(gx,g.y0);ctx.stroke();}ctx.strokeStyle=AX;ctx.beginPath();ctx.moveTo(g.x0,g.y0);ctx.lineTo(g.x1,g.y0);ctx.stroke();
- ctx.fillStyle=REJ;ctx.beginPath();ctx.moveTo(SX(r[0]),g.y0);for(var i=0;i<=260;i++){ctx.lineTo(SX(xs[i][0]),inrej(xs[i][0])?SY(xs[i][1]):g.y0);}ctx.lineTo(SX(r[1]),g.y0);ctx.closePath();ctx.fill();
+ // gridlines + normal axis tick numbers (the scale)
+ ctx.lineWidth=1;ctx.font='10px sans-serif';ctx.textAlign='center';var _wide=Math.abs(r[1]-r[0])>20;for(var gi=0;gi<=6;gi++){var gv=r[0]+(r[1]-r[0])*gi/6,gx=SX(gv);ctx.strokeStyle=GRID;ctx.beginPath();ctx.moveTo(gx,g.y1);ctx.lineTo(gx,g.y0);ctx.stroke();ctx.fillStyle=TICK;ctx.fillText(_wide?gv.toFixed(0):gv.toFixed(1),gx,g.y0+14);}ctx.strokeStyle=AX;ctx.beginPath();ctx.moveTo(g.x0,g.y0);ctx.lineTo(g.x1,g.y0);ctx.stroke();
+ ctx.fillStyle='rgba(194,106,10,.16)';ctx.beginPath();ctx.moveTo(SX(r[0]),g.y0);for(var i=0;i<=260;i++){ctx.lineTo(SX(xs[i][0]),inrej(xs[i][0])?SY(xs[i][1]):g.y0);}ctx.lineTo(SX(r[1]),g.y0);ctx.closePath();ctx.fill();
  ctx.strokeStyle=CURVE;ctx.lineWidth=2.2;ctx.beginPath();for(var i=0;i<=260;i++){var X=SX(xs[i][0]),Y=SY(xs[i][1]);i?ctx.lineTo(X,Y):ctx.moveTo(X,Y);}ctx.stroke();
- crit.forEach(function(c){if(c<r[0]||c>r[1])return;vmark(ctx,g,SX(c),SY(D.pdf(c)),CRIT,true,null);});ctx.textAlign='center';ctx.font='10px sans-serif';ctx.fillStyle=CRIT;crit.forEach(function(c){if(c<r[0]||c>r[1])return;ctx.fillText(f3(c),SX(c),g.y0+13);});
- var sc=Math.max(r[0],Math.min(r[1],stat));vmark(ctx,g,SX(sc),SY(D.pdf(sc)),VAL,false,null);
- var sym=kind==='z'?'z':kind==='t'?'t':kind==='chi2'?'χ²':'F';ctx.fillStyle=VAL;ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.fillText(sym+' = '+f3(stat),SX(sc),g.y0+25);}
+ // critical value(s): amber dashed marker + "sym* = value"  |  test statistic: red solid marker + "sym = value"
+ var sym=kind==='z'?'z':kind==='t'?'t':kind==='chi2'?'χ²':'F';var CAMBER='#C26A0A',CRED='#C0392B',labels=[];
+ crit.forEach(function(c){if(c<r[0]||c>r[1])return;vmark(ctx,g,SX(c),SY(D.pdf(c)),CAMBER,true,null);labels.push({x:SX(c),text:sym+'* = '+f3(c),color:CAMBER});});
+ var sc=Math.max(r[0],Math.min(r[1],stat));vmark(ctx,g,SX(sc),SY(D.pdf(sc)),CRED,false,null);labels.push({x:SX(sc),text:sym+' = '+f3(stat),color:CRED});
+ statLabels(ctx,g,labels);}
 function drawCI(cv,kind,df,est,se,lo,hi){var g=geo(cv),ctx=g.ctx;var r=[est-4*se,est+4*se];function SX(x){return g.x0+(x-r[0])/(r[1]-r[0])*(g.x1-g.x0);}var v=df||1e6;
  function pdf(z){return (kind==='z'?Math.exp(-z*z/2)/Math.sqrt(2*Math.PI):Math.exp(lg((v+1)/2)-lg(v/2))/Math.sqrt(v*Math.PI)*Math.pow(1+z*z/v,-(v+1)/2))/se;}
  axis(ctx,g,r,SX,function(xv){return f3(xv);});
